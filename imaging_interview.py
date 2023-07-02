@@ -1,5 +1,6 @@
 import cv2
 import imutils
+import numpy as np
 
 
 def draw_color_mask(img, borders, color=(0, 0, 0)):
@@ -31,10 +32,33 @@ def preprocess_image_change_detection(img, gaussian_blur_radius_list=None, black
     return gray
 
 
-def compare_frames_change_detection(prev_frame, next_frame, min_contour_area):
-    frame_delta = cv2.absdiff(prev_frame, next_frame)
-    thresh = cv2.threshold(frame_delta, 45, 255, cv2.THRESH_BINARY)[1]
+def remove_glare(image1: np.ndarray, image2: np.ndarray, min_glare=215) -> tuple[np.ndarray, np.ndarray]:
+    """
+    This function accepts a pair of images in grayscale and removes over-exposed pixels from
+    the images such as glare from sunlight by using min_glare as the minimum threshold.
+    Over-exposed pixel values are assigned a value of 0 and resulting images are returned
 
+    min_glare ranges from 0 to 255, with default being 215.
+    """
+    if -1 < min_glare < 256:
+        mask = cv2.threshold(image1, min_glare, 255, cv2.THRESH_BINARY_INV)[1]
+        masked_image1 = cv2.bitwise_and(image1, mask)
+        del mask
+
+        mask = cv2.threshold(image2, min_glare, 255, cv2.THRESH_BINARY_INV)[1]
+        masked_image2 = cv2.bitwise_and(image2, mask)
+
+        return masked_image1, masked_image2
+    else:
+        return image1, image2
+
+
+def compare_frames_change_detection(prev_frame, next_frame, min_contour_area):
+    frame1, frame2 = remove_glare(prev_frame.copy(), next_frame.copy())
+
+    frame_delta = cv2.absdiff(frame1, frame2)
+
+    thresh = cv2.threshold(frame_delta, 45, 255, cv2.THRESH_BINARY)[1]
     thresh = cv2.dilate(thresh, None, iterations=2)
     cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
                             cv2.CHAIN_APPROX_SIMPLE)
@@ -43,7 +67,8 @@ def compare_frames_change_detection(prev_frame, next_frame, min_contour_area):
     score = 0
     res_cnts = []
     for c in cnts:
-        if cv2.contourArea(c) < min_contour_area:
+        temp = cv2.contourArea(c)
+        if temp < min_contour_area:
             continue
 
         res_cnts.append(c)
