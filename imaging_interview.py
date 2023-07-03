@@ -32,25 +32,15 @@ def preprocess_image_change_detection(img, gaussian_blur_radius_list=None, black
     return gray
 
 
-def remove_glare(image1: np.ndarray, image2: np.ndarray, min_glare=215) -> tuple[np.ndarray, np.ndarray]:
+def remove_glare(image1: np.ndarray, image2: np.ndarray, alpha=0.7, beta=30) -> tuple[np.ndarray, np.ndarray]:
     """
-    This function accepts a pair of images in grayscale and removes over-exposed pixels from
-    the images such as glare from sunlight by using min_glare as the minimum threshold.
-    Over-exposed pixel values are assigned a value of 0 and resulting images are returned
-
-    min_glare ranges from 0 to 255, with default being 215.
+    This function accepts a pair of images in grayscale and reduces contrast in images to curtail
+    over exposed images.
+    alpha is a simple contrast control
+    beta is a simple brightness control
     """
-    if -1 < min_glare < 256:
-        mask = cv2.threshold(image1, min_glare, 255, cv2.THRESH_BINARY_INV)[1]
-        masked_image1 = cv2.bitwise_and(image1, mask)
-        del mask
-
-        mask = cv2.threshold(image2, min_glare, 255, cv2.THRESH_BINARY_INV)[1]
-        masked_image2 = cv2.bitwise_and(image2, mask)
-
-        return masked_image1, masked_image2
-    else:
-        return image1, image2
+    return np.clip(alpha * image1[:] + beta, 0, 255).astype(np.uint8), \
+        np.clip(alpha * image2[:] + beta, 0, 255).astype(np.uint8)
 
 
 def compare_frames_change_detection(prev_frame, next_frame, min_contour_area):
