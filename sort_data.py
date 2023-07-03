@@ -9,26 +9,26 @@ PARAMETER_DICT = [
      [[[640, 480],
        [['Blur radius', [5, 5]],
         ['Black mask', [0, 13, 0, 0]],
-        ['Min counter area', [500]]]],
+        ['Min contour area', [500]]]],
       [[2688, 1520],
        [['Blur radius', [5, 5, 5, 5]],
         ['Black mask', [0, 13, 0, 0]],
-        ['Min counter area', [1500]]]]]],
+        ['Min contour area', [1500]]]]]],
     ['c20',
      [[[1920, 1080],
        [['Blur radius', [11, 5, 5, 5]],
         ['Black mask', [0, 28.5, 0, 0]],
-        ['Min counter area', [1250]]]]]],
+        ['Min contour area', [1250]]]]]],
     ['c21',
      [[[1920, 1080],
        [['Blur radius', [11, 5, 5, 5]],
         ['Black mask', [0, 30.5, 0, 0]],
-        ['Min counter area', [2500]]]]]],
+        ['Min contour area', [2500]]]]]],
     ['c23',
      [[[1920, 1080],
        [['Blur radius', [11, 5, 5, 5]],
         ['Black mask', [0, 35, 0, 0]],
-        ['Min counter area', [600]]]]]]]
+        ['Min contour area', [600]]]]]]]
 
 
 def sort_into_camera_views(folder_name: str, cam_id_len=3):
@@ -55,7 +55,7 @@ def sort_into_camera_views(folder_name: str, cam_id_len=3):
                 shutil.move(file_src, file_dest)
 
 
-def get_file_list(folder_name: str) -> tuple[list[str], list[str | str]]:
+def get_file_list(folder_name: str):
     """
 
     :param folder_name:
@@ -80,20 +80,20 @@ def get_image_dimensions(path):
     return width, height
 
 
-def get_img_parameters(img_dimensions, image_list, camera_id):
+def get_img_parameters(img_dimensions, camera_id):
     width, height = img_dimensions
 
     cam_dict = [x for x in range(len(PARAMETER_DICT)) if camera_id == PARAMETER_DICT[x][0]][0]
-    parameter_idx = [l for l in range(len(PARAMETER_DICT[cam_dict][1]))
-                     if [width, height] == PARAMETER_DICT[cam_dict][1][l][0]][0]
+    parameter_idx = [x for x in range(len(PARAMETER_DICT[cam_dict][1]))
+                     if [width, height] == PARAMETER_DICT[cam_dict][1][x][0]][0]
     parameter_list = PARAMETER_DICT[cam_dict][1][parameter_idx][1]
     blur_radius_list = \
         [parameter_list[x][1] for x in range(len(parameter_list)) if parameter_list[x][0] == 'Blur radius'][0]
     black_mask = tuple(
         [parameter_list[x][1] for x in range(len(parameter_list)) if parameter_list[x][0] == 'Black mask'][0])
-    min_countour_area = \
-        [parameter_list[x][1] for x in range(len(parameter_list)) if parameter_list[x][0] == 'Min counter area'][0][0]
-    return [blur_radius_list, black_mask, min_countour_area]
+    min_contour_area = \
+        [parameter_list[x][1] for x in range(len(parameter_list)) if parameter_list[x][0] == 'Min contour area'][0][0]
+    return [blur_radius_list, black_mask, min_contour_area]
 
 
 def get_score(img1_path, img2_path, parameters):
@@ -130,14 +130,9 @@ def parse_file_list(dir_name, files, cam_id_len=3):
         else:
             file_dictionary[idx[0]][1].append(file)
 
-    parameters = []
-    for dict, filenames in file_dictionary:
-        parameters = get_img_parameters(dict, filenames, camera_id)
+    for values, filenames in file_dictionary:
+        parameters = get_img_parameters(values, camera_id)
         parse_image_pairs(dir_name, filenames, parameters)
-
-
-def read_images():
-    print()
 
 
 DATA_FOLDER = "dataset"
