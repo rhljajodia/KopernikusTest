@@ -11,7 +11,7 @@ PARAMETER_DICT = [
         ['Black mask', [0, 13, 0, 0]],
         ['Min contour area', [500]]]],
       [[2688, 1520],
-       [['Blur radius', [5, 5, 5, 5]],
+       [['Blur radius', [11, 5, 5, 5]],
         ['Black mask', [0, 13, 0, 0]],
         ['Min contour area', [1500]]]]]],
     ['c20',
