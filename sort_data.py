@@ -135,8 +135,8 @@ def parse_file_list(dir_name, files, cam_id_len=3):
         parse_image_pairs(dir_name, filenames, parameters)
 
 
-DATA_FOLDER = "dataset"
-# sort_camera_views(data_folder)  # Only run once to organize data
+DATA_FOLDER = "dataset-candidates-ml\\dataset"
+sort_into_camera_views(DATA_FOLDER)  # Only run once to organize data
 dir_paths, file_lists = get_file_list(DATA_FOLDER)
 for (dir_path, file_list) in zip(dir_paths, file_lists):
     parse_file_list(dir_path, file_list)
