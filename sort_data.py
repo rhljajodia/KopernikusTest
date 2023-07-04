@@ -30,6 +30,11 @@ PARAMETER_DICT = [
         ['Black mask', [0, 35, 0, 0]],
         ['Min contour area', [600]]]]]]]
 
+to_delete = ['c21_2021_03_27__12_53_37.png',     # ignored - image resolution is 10 by 6 px
+             'c21_2021_03_27__10_36_36.png',     # ignored - corrupt image
+             'c21_2021_04_27__12_44_38.png',     # ignored - outlier resolution: 1200 x 675
+             'c21_2021_04_27__12_04_38.png']     # ignored - outlier resolution: 1100 x 619
+
 
 def sort_into_camera_views(folder_name: str, cam_id_len=3):
     """
@@ -49,6 +54,9 @@ def sort_into_camera_views(folder_name: str, cam_id_len=3):
         for filename in files:
             file_src = working_path + '\\' + filename
             file_dest = working_path + '\\' + filename[0:cam_id_len]
+            if filename in to_delete:
+                os.remove(file_src)
+                continue
             if not os.path.exists(file_dest):
                 os.makedirs(file_dest)
             if os.path.exists(file_dest):
