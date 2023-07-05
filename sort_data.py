@@ -76,10 +76,7 @@ def resize_images(folder_path, file_list):
 
 def parse_file_list(folder_path, file_list):
     # resize images to IMG_SIZE and save to new directory
-    # resize_images(folder_path, file_list)
-
-    # change file_list to absolute paths
-    file_list = [folder_path + '\\' + x for x in file_list]
+    resize_images(folder_path, file_list)
 
     # read dataset list from new directory
     resized_path = folder_path + '\\' + RESIZED_DIR
@@ -142,11 +139,13 @@ def parse_file_list(folder_path, file_list):
 
             print("... found: " + str(count) + ".")
 
+    dupli_list = [x[x.rfind('\\') + 1:] for x in dupli_list]  # remove path extensions from list
+
     # once all duplicates have been marked for each image, delete them from the original dataset
     print("Deleting all duplicates... ", end='')
     for file in file_list:
         if file in dupli_list:
-            os.remove(file)
+            os.remove(folder_path + '\\' + file)
     print("done")
 
     # delete resized images and directory
