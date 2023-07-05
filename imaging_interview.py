@@ -22,7 +22,6 @@ def draw_color_mask(img, borders, color=(0, 0, 0)):
 
 def preprocess_image_change_detection(img, gaussian_blur_radius_list=None, black_mask=(5, 10, 5, 0)):
     gray = img.copy()
-    gray = cv2.cvtColor(gray, cv2.COLOR_BGR2GRAY)
     if gaussian_blur_radius_list is not None:
         for radius in gaussian_blur_radius_list:
             gray = cv2.GaussianBlur(gray, (radius, radius), 0)
