@@ -90,8 +90,7 @@ def parse_file_list(folder_path, file_list):
 
         cam_files = [x for x in resized_file_list if cam_id in x]
         if cam_files:
-            print()
-            print(cam_id+":", end='\n')
+            print("\n"+cam_id+":")
 
         # turn file paths to absolute paths
         file_paths = [resized_path + '\\' + x for x in cam_files]
