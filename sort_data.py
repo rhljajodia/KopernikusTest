@@ -4,23 +4,23 @@ import cv2
 
 # Define all global variables
 
-CAMERAS = ['c10', 'c20', 'c21', 'c23']      # camera IDs
+CAMERAS = ['c10', 'c20', 'c21', 'c23']  # camera IDs
 
-BLUR_RADIUS = [5, 5]                        # Gaussian blur radius list
+BLUR_RADIUS = [5, 5]  # Gaussian blur radius list
 
-MIN_CONTOUR_AREA = 500                      # min contour area
+MIN_CONTOUR_AREA = 500  # min contour area
 
-BLACK_MASK = dict()                         # dictionary for black mask for each camera view
+BLACK_MASK = dict()  # dictionary for black mask for each camera view
 BLACK_MASK['c10'] = (0, 13, 0, 0)
 BLACK_MASK['c20'] = (0, 28, 0, 0)
 BLACK_MASK['c21'] = (0, 30, 0, 0)
 BLACK_MASK['c23'] = (0, 35, 0, 0)
 
-IMG_SIZE = (640, 480)                       # image size to resize all images to
+IMG_SIZE = (640, 480)  # image size to resize all images to
 
 DATA_FOLDER = "dataset-candidates-ml\\dataset"  # relative path to dataset
 
-RESIZED_DIR = "resized"                         # folder name to save resized images
+RESIZED_DIR = "resized"  # folder name to save resized images
 
 
 def get_file_list(folder_path: str):
@@ -53,25 +53,29 @@ def resize(file_name, img):
     return 1, img
 
 
-def resize_images(folder_path, file_list):
+def resize_images(folder_path, file_list, cam_id_len=3):
     """
     This function resizes images to a pre-define size (IMG_SIZE) and saves them in a
     new directory to save computational time while computing scores
     """
-    print("Resizing all images...")
+    print("Resizing and preprocessing all images...")
     for file in file_list:
         img = cv2.imread(folder_path + '\\' + file, cv2.IMREAD_GRAYSCALE)
         ret, resized_img = resize(file, img)
 
-        if ret == -1:           # if image not resized successfully, continue
+        if ret == -1:  # if image not resized successfully, continue
             continue
+
+        # preprocess image to save computational power later
+        cam_id = file[0:cam_id_len]
+        resized_img = img_int.preprocess_image_change_detection(resized_img, BLUR_RADIUS, BLACK_MASK[cam_id])
 
         # save resized image
         new_path = folder_path + '\\' + RESIZED_DIR
         if not os.path.exists(new_path):
             os.makedirs(new_path)
         cv2.imwrite(new_path + '\\' + file, resized_img)
-    print("Resizing all images... done")
+    print("Resizing and preprocessing all images... done")
 
 
 def parse_file_list(folder_path, file_list):
@@ -90,7 +94,7 @@ def parse_file_list(folder_path, file_list):
 
         cam_files = [x for x in resized_file_list if cam_id in x]
         if cam_files:
-            print("\n"+cam_id+":")
+            print("\n" + cam_id + ":")
 
         # turn file paths to absolute paths
         file_paths = [resized_path + '\\' + x for x in cam_files]
@@ -106,27 +110,21 @@ def parse_file_list(folder_path, file_list):
 
             # make sure image 1 is not a duplicate of some other image
             if img1_file in dupli_list:
-                print("    image " + img1_file[img1_file.rfind('\\')+1:] + " is itself a duplicate... skipped")
+                print("    image " + img1_file[img1_file.rfind('\\') + 1:] + " is itself a duplicate... skipped")
                 continue
 
-            # read image 1
+            # read preprocessed image 1
             img1 = cv2.imread(img1_file, cv2.IMREAD_GRAYSCALE)
 
-            # preprocess
-            img1 = img_int.preprocess_image_change_detection(img1, BLUR_RADIUS, BLACK_MASK[cam_id])
-
-            print("    Finding duplicates for image " + img1_file[img1_file.rfind('\\')+1:], end='')
+            print("    Finding duplicates for image " + img1_file[img1_file.rfind('\\') + 1:], end='')
 
             # loop ahead over dataset
-            for img2_file in file_paths[i+1:]:
+            for img2_file in file_paths[i + 1:]:
                 # Make sure image 2 has not already been marked as a duplicate
                 if img2_file not in dupli_list:
 
-                    # read image 2
+                    # read preprocessed image 2
                     img2 = cv2.imread(img2_file, cv2.IMREAD_GRAYSCALE)
-
-                    # preprocess
-                    img2 = img_int.preprocess_image_change_detection(img2, BLUR_RADIUS, BLACK_MASK[cam_id])
 
                     # get score
                     score, _, _ = img_int.compare_frames_change_detection(img1, img2, MIN_CONTOUR_AREA)
@@ -150,7 +148,7 @@ def parse_file_list(folder_path, file_list):
     # delete resized images along with directory it is saved to
     print("Deleting resized image directory... ", end='')
     for file in resized_file_list:
-        os.remove(resized_path+'\\'+file)
+        os.remove(resized_path + '\\' + file)
     os.removedirs(resized_path)
     print("done")
 
