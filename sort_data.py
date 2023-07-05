@@ -139,7 +139,7 @@ def parse_file_list(folder_path, file_list):
 
             print("... found: " + str(count) + ".")
 
-    dupli_list = [x[x.rfind('\\') + 1:] for x in dupli_list]  # remove path extensions from list
+    dupli_list = [x[x.rfind('\\') + 1:] for x in dupli_list]  # extract image names from list
 
     # once all duplicates have been marked for each image, delete them from the original dataset
     print("Deleting all duplicates... ", end='')
