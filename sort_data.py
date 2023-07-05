@@ -1,151 +1,167 @@
 import imaging_interview as img_int
 import os
-import shutil
-from PIL import Image
 import cv2
 
-PARAMETER_DICT = [
-    ['c10',
-     [[[640, 480],
-       [['Blur radius', [5, 5]],
-        ['Black mask', [0, 13, 0, 0]],
-        ['Min contour area', [500]]]],
-      [[2688, 1520],
-       [['Blur radius', [11, 5, 5, 5]],
-        ['Black mask', [0, 13, 0, 0]],
-        ['Min contour area', [1500]]]]]],
-    ['c20',
-     [[[1920, 1080],
-       [['Blur radius', [11, 5, 5, 5]],
-        ['Black mask', [0, 28.5, 0, 0]],
-        ['Min contour area', [1250]]]]]],
-    ['c21',
-     [[[1920, 1080],
-       [['Blur radius', [11, 5, 5, 5]],
-        ['Black mask', [0, 30.5, 0, 0]],
-        ['Min contour area', [2500]]]]]],
-    ['c23',
-     [[[1920, 1080],
-       [['Blur radius', [11, 5, 5, 5]],
-        ['Black mask', [0, 35, 0, 0]],
-        ['Min contour area', [600]]]]]]]
+# Define all global variables
 
-to_delete = ['c21_2021_03_27__12_53_37.png',     # ignored - image resolution is 10 by 6 px
-             'c21_2021_03_27__10_36_36.png',     # ignored - corrupt image
-             'c21_2021_04_27__12_44_38.png',     # ignored - outlier resolution: 1200 x 675
-             'c21_2021_04_27__12_04_38.png']     # ignored - outlier resolution: 1100 x 619
+CAMERAS = ['c10', 'c20', 'c21', 'c23']      # camera IDs
+
+BLUR_RADIUS = [5, 5]                        # Gaussian blur radius list
+
+MIN_CONTOUR_AREA = 500                      # min contour area
+
+BLACK_MASK = dict()                         # dictionary for black mask for each camera view
+BLACK_MASK['c10'] = (0, 13, 0, 0)
+BLACK_MASK['c20'] = (0, 28, 0, 0)
+BLACK_MASK['c21'] = (0, 30, 0, 0)
+BLACK_MASK['c23'] = (0, 35, 0, 0)
+
+IMG_SIZE = (640, 480)                       # image size to resize all images to
+
+DATA_FOLDER = "dataset-candidates-ml\\dataset"  # relative path to dataset
+
+RESIZED_DIR = "resized"                         # folder name to save resized images
 
 
-def sort_into_camera_views(folder_name: str, cam_id_len=3):
+def get_file_list(folder_path: str):
     """
-    This function sorts images into separate folders as per the camera id.
-    Only needs to be run once, unless new images are added.
-
-    folder_name may be a relative or absolute path to local directory where the images are stored.
-
-    camera_id_len defines length of the camera id used in file names
-    For eg: file-name = 'c10_036482947.png'
-            camera_id_len = 3
-            file-name = 'c010_232421321.png'
-            camera_id_len = 4
+    Helper function to retrieve file list in a directory
     """
-    for (root, dirs, files) in os.walk(folder_name, topdown=True):
-        working_path = os.path.abspath(folder_name)
-        for filename in files:
-            file_src = working_path + '\\' + filename
-            file_dest = working_path + '\\' + filename[0:cam_id_len]
-            if filename in to_delete:
-                os.remove(file_src)
+    return os.listdir(folder_path)
+
+
+def resize(file_name, img):
+    """
+    Helper function to resize an image to the size defined by global variable IMG_SIZE.
+    This function also filters out unreadable images and images which are smaller than IMG_SIZE.
+    """
+    # unreadable image
+    if img is None:
+        print("    Entry ignored: Image " + file_name + " is unreadable.")
+        return -1, img
+
+    height, width = img.shape
+
+    # image too small
+    if width < IMG_SIZE[0] or height < IMG_SIZE[1]:
+        print("    Entry ignored: Image " + file_name + " is too small (" + str(width) + ' x ' + str(height) + ' px).')
+        return -1, img
+
+    # image needing resizing
+    if width > IMG_SIZE[0] or height > IMG_SIZE[1]:
+        img = cv2.resize(img.copy(), IMG_SIZE, interpolation=cv2.INTER_AREA)
+    return 1, img
+
+
+def resize_images(folder_path, file_list):
+    """
+    This function resizes images to a pre-define size (IMG_SIZE) and saves them in a
+    new directory to save computational time while computing scores
+    """
+    print("Resizing all images...")
+    for file in file_list:
+        img = cv2.imread(folder_path + '\\' + file, cv2.IMREAD_GRAYSCALE)
+        ret, resized_img = resize(file, img)
+
+        if ret == -1:           # if image not resized successfully, continue
+            continue
+
+        # save resized image
+        new_path = folder_path + '\\' + RESIZED_DIR
+        if not os.path.exists(new_path):
+            os.makedirs(new_path)
+        cv2.imwrite(new_path + '\\' + file, resized_img)
+    print("Resizing all images... done")
+
+
+def parse_file_list(folder_path, file_list):
+    # resize images to IMG_SIZE and save to new directory
+    # resize_images(folder_path, file_list)
+
+    # change file_list to absolute paths
+    file_list = [folder_path + '\\' + x for x in file_list]
+
+    # read dataset list from new directory
+    resized_path = folder_path + '\\' + RESIZED_DIR
+    resized_file_list = get_file_list(resized_path)
+
+    # define list to hold duplicate file names
+    dupli_list = []
+
+    # loop over camera views
+    for cam_id in CAMERAS:
+
+        cam_files = [x for x in resized_file_list if cam_id in x]
+        if cam_files:
+            print()
+            print(cam_id+":", end='\n')
+
+        # turn file paths to absolute paths
+        file_paths = [resized_path + '\\' + x for x in cam_files]
+
+        i = -1  # Define the iterator
+        # loop over all images in camera view
+        while i < len(file_paths) - 1:
+            i += 1
+            count = 0
+
+            # image 1
+            img1_file = file_paths[i]
+
+            # make sure image 1 is not a duplicate of some other image
+            if img1_file in dupli_list:
+                print("    image " + img1_file[img1_file.rfind('\\')+1:] + " is itself a duplicate... skipped")
                 continue
-            if not os.path.exists(file_dest):
-                os.makedirs(file_dest)
-            if os.path.exists(file_dest):
-                shutil.move(file_src, file_dest)
+
+            # read image 1
+            img1 = cv2.imread(img1_file, cv2.IMREAD_GRAYSCALE)
+
+            # preprocess
+            img1 = img_int.preprocess_image_change_detection(img1, BLUR_RADIUS, BLACK_MASK[cam_id])
+
+            print("    Finding duplicates for image " + img1_file[img1_file.rfind('\\')+1:], end='')
+
+            # loop ahead over dataset
+            for img2_file in file_paths[i+1:]:
+                # Make sure image 2 has not already been marked as a duplicate
+                if img2_file not in dupli_list:
+
+                    # read image 2
+                    img2 = cv2.imread(img2_file, cv2.IMREAD_GRAYSCALE)
+
+                    # preprocess
+                    img2 = img_int.preprocess_image_change_detection(img2, BLUR_RADIUS, BLACK_MASK[cam_id])
+
+                    # get score
+                    score, _, _ = img_int.compare_frames_change_detection(img1, img2, MIN_CONTOUR_AREA)
+
+                    # mark as a duplicate if score is zero
+                    if score == 0:
+                        dupli_list.append(img2_file)
+                        count += 1
+
+            print("... found: " + str(count) + ".")
+
+    # once all duplicates have been marked for each image, delete them from the original dataset
+    print("Deleting all duplicates... ", end='')
+    for file in file_list:
+        if file in dupli_list:
+            os.remove(file)
+    print("done")
+
+    # delete resized images and directory
+    print("Deleting resized image directory... ", end='')
+    for file in resized_file_list:
+        os.remove(file)
+    os.removedirs(resized_path)
+    print("done")
 
 
-def get_file_list(folder_name: str):
-    """
-
-    :param folder_name:
-    :return:
-    """
-    root_path = os.path.abspath(folder_name)
-    file_list = []
-    dir_paths = []
-    for (root, dirs, files) in os.walk(folder_name, topdown=True):
-        if not dirs:
-            return root + "\\", [files]
-        else:
-            for dirName in dirs:
-                dir_paths.append(root_path + "\\" + dirName + "\\")
-                for (_, _, dir_files) in os.walk(dir_paths[-1], topdown=True):
-                    file_list.append(sorted(dir_files))
-            return dir_paths, file_list
+def main():
+    folder_path = os.path.abspath(DATA_FOLDER)
+    file_list = get_file_list(folder_path)
+    parse_file_list(folder_path, file_list)
 
 
-def get_image_dimensions(path):
-    width, height = Image.open(path).size
-    return width, height
-
-
-def get_img_parameters(img_dimensions, camera_id):
-    width, height = img_dimensions
-
-    cam_dict = [x for x in range(len(PARAMETER_DICT)) if camera_id == PARAMETER_DICT[x][0]][0]
-    parameter_idx = [x for x in range(len(PARAMETER_DICT[cam_dict][1]))
-                     if [width, height] == PARAMETER_DICT[cam_dict][1][x][0]][0]
-    parameter_list = PARAMETER_DICT[cam_dict][1][parameter_idx][1]
-    blur_radius_list = \
-        [parameter_list[x][1] for x in range(len(parameter_list)) if parameter_list[x][0] == 'Blur radius'][0]
-    black_mask = tuple(
-        [parameter_list[x][1] for x in range(len(parameter_list)) if parameter_list[x][0] == 'Black mask'][0])
-    min_contour_area = \
-        [parameter_list[x][1] for x in range(len(parameter_list)) if parameter_list[x][0] == 'Min contour area'][0][0]
-    return [blur_radius_list, black_mask, min_contour_area]
-
-
-def get_score(img1_path, img2_path, parameters):
-    img1 = cv2.imread(img1_path, cv2.IMREAD_UNCHANGED)
-    img2 = cv2.imread(img2_path, cv2.IMREAD_UNCHANGED)
-    img1 = img_int.preprocess_image_change_detection(img1, parameters[0], parameters[1])
-    img2 = img_int.preprocess_image_change_detection(img2, parameters[0], parameters[1])
-    return img_int.compare_frames_change_detection(img1, img2, parameters[2])
-
-
-def parse_image_pairs(dir_path, filenames, parameters):
-    ids_to_delete = []
-    for i in range(len(filenames) - 1):
-        score, _, _ = get_score(dir_path + filenames[i], dir_path + filenames[i + 1], parameters)
-        if score == 0:
-            ids_to_delete.append(i)
-    dupli_files = [filenames[x] for x in ids_to_delete]
-    for name in dupli_files:
-        os.remove(dir_path + name)
-        print("Removed file: " + name)
-
-
-def parse_file_list(dir_name, files, cam_id_len=3):
-    file_dictionary = []
-    camera_id = files[0][0:cam_id_len]
-    for file in files:
-        path = dir_name + file
-        width, height = get_image_dimensions(path)
-        idx = []
-        if file_dictionary:
-            idx = [x for x in range(len(file_dictionary)) if [width, height] == file_dictionary[x][0]]
-        if not idx:
-            file_dictionary.append([[width, height], [file]])
-        else:
-            file_dictionary[idx[0]][1].append(file)
-
-    for values, filenames in file_dictionary:
-        parameters = get_img_parameters(values, camera_id)
-        parse_image_pairs(dir_name, filenames, parameters)
-
-
-DATA_FOLDER = "dataset-candidates-ml\\dataset"
-sort_into_camera_views(DATA_FOLDER)  # Only run once to organize data
-dir_paths, file_lists = get_file_list(DATA_FOLDER)
-for (dir_path, file_list) in zip(dir_paths, file_lists):
-    parse_file_list(dir_path, file_list)
-print()
+if __name__ == '__main__':
+    main()
