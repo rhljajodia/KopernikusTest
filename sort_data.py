@@ -150,7 +150,7 @@ def parse_file_list(folder_path, file_list):
     # delete resized images and directory
     print("Deleting resized image directory... ", end='')
     for file in resized_file_list:
-        os.remove(file)
+        os.remove(resized_path+'\\'+file)
     os.removedirs(resized_path)
     print("done")
 
